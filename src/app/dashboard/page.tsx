@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { AddClassModal, NewClassData } from "@/components/AddClassModal";
+import { useRouter } from "next/navigation";
 
 interface ClassData {
   id: string;
@@ -17,15 +18,55 @@ interface ClassData {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
 
-  // Opens the Add Class modal
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) {
+      router.push("/auth");
+      return;
+    }
+    const userObj = JSON.parse(storedUser);
+    setUserName(userObj.name || userObj.email);
+    fetchClasses();
+  }, [router]);
+
+  const fetchClasses = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await fetch("http://localhost:3000/classes", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) {
+        throw new Error("Failed to fetch classes");
+      }
+      const data = await res.json();
+      const formatted: ClassData[] = data.map((cls: any) => ({
+        id: String(cls.id),
+        className: cls.class_name,
+        professor: cls.professor || "",
+        session: cls.session || "",
+        semester: cls.semester || "",
+        progress: 0,
+        roadmapCreated: false,
+        syllabusUploaded: !!cls.syllabus,
+      }));
+      setClasses(formatted);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleAddClassClick = () => {
     setModalOpen(true);
   };
 
-  // Called when the Add Class form is submitted successfully
   const handleAddClass = (data: NewClassData) => {
     const newClass: ClassData = {
       id: Date.now().toString(),
@@ -35,12 +76,12 @@ export default function Dashboard() {
       semester: data.semester,
       progress: 0,
       roadmapCreated: false,
-      syllabusUploaded: !!data.syllabusFile,
+      syllabusUploaded: true,
     };
     setClasses((prev) => [...prev, newClass]);
+    fetchClasses();
   };
 
-  // For testing: simulate progress update on a class
   const simulateProgress = (id: string) => {
     setClasses((prev) =>
       prev.map((cls) =>
@@ -55,32 +96,35 @@ export default function Dashboard() {
     );
   };
 
-  // Determine how many placeholder cards to show.
   const filledCount = classes.length;
   const remainder = filledCount % 4;
   const placeholdersCount =
     filledCount === 0 ? 4 : remainder === 0 ? 4 : 4 - remainder;
-
-  // Create a combined array: filled classes first, then placeholder nulls.
   const displayCards = [...classes, ...Array(placeholdersCount).fill(null)];
 
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
-      {/* Header with Radial Dots Background */}
       <div className="relative mb-12">
         <div className="relative h-[20rem] flex flex-col items-center justify-center">
-          {/* Dots background layer */}
           <div className="absolute inset-0 [background-size:20px_20px] [background-image:radial-gradient(#d4d4d4_1px,transparent_1px)] dark:[background-image:radial-gradient(#404040_1px,transparent_1px)]"></div>
-          {/* Faded radial gradient overlay */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)] dark:bg-black"></div>
-          {/* Header content */}
           <div className="relative z-20 text-center">
+            {userName && (
+              <motion.p
+                className="text-2xl mb-2"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0 }}
+              >
+                Hey {userName}, ready to lock in?
+              </motion.p>
+            )}
             <motion.h2
               className="text-5xl font-semibold mb-2"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
             >
               Your Classes
             </motion.h2>
@@ -88,7 +132,7 @@ export default function Dashboard() {
               className="text-gray-300 mb-4 text-xl"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.1 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
             >
               Manage your classes and create personalized study roadmaps.
             </motion.p>
@@ -97,14 +141,14 @@ export default function Dashboard() {
               className="bg-white text-black mt-2 px-6 py-2 rounded hover:bg-gray-200 transition"
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
+              transition={{ duration: 0.4, delay: 0.3 }}
             >
               Sync with Canvas
             </motion.button>
           </div>
         </div>
       </div>
-      {/* Cards Section */}
+
       <main className="container mx-auto px-4 pb-8 text-center">
         <motion.section
           className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6"
@@ -124,10 +168,12 @@ export default function Dashboard() {
                 }
                 return cls.professor;
               })();
+
               return (
                 <div
                   key={cls.id}
-                  className="bg-black text-white rounded-lg p-4 flex flex-col h-[24rem] border-2 border-[#FF6B00] shadow-[0_0_10px_#FF6B00]"
+                  onClick={() => router.push(`/classes/${cls.id}`)}
+                  className="cursor-pointer bg-black text-white rounded-lg p-4 flex flex-col h-[24rem] border-2 border-[#FF6B00] shadow-[0_0_10px_#FF6B00]"
                 >
                   <div>
                     <h3 className="font-extrabold text-4xl mt-5">
@@ -170,8 +216,12 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div>
+                    {/* Stop the card's onClick from firing by calling e.stopPropagation() */}
                     <button
-                      onClick={() => simulateProgress(cls.id)}
+                      onClick={(e) => {
+                        e.stopPropagation(); // prevent card click
+                        simulateProgress(cls.id);
+                      }}
                       className="w-full bg-[#FF6B00] text-white px-4 py-2 rounded hover:bg-orange-500 transition mt-4"
                     >
                       {cls.roadmapCreated ? "View Roadmap" : "Generate Roadmap"}
@@ -209,6 +259,7 @@ export default function Dashboard() {
           })}
         </motion.section>
       </main>
+
       {modalOpen && (
         <AddClassModal
           onClose={() => setModalOpen(false)}

@@ -1,4 +1,3 @@
-"use client";
 import React, { useState, ChangeEvent, FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -7,7 +6,6 @@ export interface NewClassData {
   professor: string;
   session: string;
   semester: string;
-  syllabusFile?: File;
 }
 
 interface AddClassModalProps {
@@ -59,24 +57,66 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({
       valid = false;
     }
 
+    // Validate that a syllabus file has been selected.
+    if (!syllabusFile) {
+      alert("Please upload a syllabus file.");
+      valid = false;
+    }
+
     setErrors(newErrors);
     return valid;
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const formattedClassName =
       className.slice(0, 3).toUpperCase() + className.slice(3);
     setClassName(formattedClassName);
-    if (validate()) {
+
+    if (!validate()) return;
+    if (!syllabusFile) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("You must be logged in.");
+        return;
+      }
+
+      // ---- Use multipart/form-data instead of JSON
+      const formData = new FormData();
+      formData.append("class_name", formattedClassName);
+      formData.append("professor", professor);
+      formData.append("session", session);
+      formData.append("semester", semester);
+      formData.append("syllabusFile", syllabusFile); // the file itself
+
+      const res = await fetch("http://localhost:3000/classes", {
+        method: "POST",
+        headers: {
+          // Don't set 'Content-Type': the browser will do it automatically.
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to add class");
+      }
+
+      alert("Class added successfully!");
+
+      // Optionally call onSubmit if you want to reflect the new class in the UI
       onSubmit({
         className: formattedClassName,
         professor,
         session,
         semester,
-        syllabusFile: syllabusFile || undefined,
       });
       onClose();
+    } catch (error: any) {
+      alert(error.message);
     }
   };
 
@@ -106,6 +146,7 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({
         >
           <h3 className="text-2xl font-semibold mb-4">Add Class</h3>
           <form className="space-y-4" onSubmit={handleSubmit}>
+            {/* Class Name */}
             <div>
               <label className="block text-gray-300 mb-1" htmlFor="className">
                 Class Name
@@ -122,6 +163,8 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({
                 <p className="text-red-500 text-sm mt-1">{errors.className}</p>
               )}
             </div>
+
+            {/* Professor */}
             <div>
               <label className="block text-gray-300 mb-1" htmlFor="professor">
                 Professor Name
@@ -138,6 +181,8 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({
                 <p className="text-red-500 text-sm mt-1">{errors.professor}</p>
               )}
             </div>
+
+            {/* Session */}
             <div>
               <label className="block text-gray-300 mb-1" htmlFor="session">
                 Session
@@ -153,6 +198,8 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({
                 <option value="C">C</option>
               </select>
             </div>
+
+            {/* Semester */}
             <div>
               <label className="block text-gray-300 mb-1" htmlFor="semester">
                 Semester
@@ -168,6 +215,8 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({
                 <option value="Summer">Summer</option>
               </select>
             </div>
+
+            {/* File Input */}
             <div>
               <label className="block text-gray-300 mb-1" htmlFor="syllabus">
                 Upload Syllabus
@@ -184,6 +233,7 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({
                 />
               </label>
             </div>
+
             <div className="flex justify-end space-x-4">
               <button
                 type="button"
