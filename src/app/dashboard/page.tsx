@@ -20,12 +20,16 @@ export default function Dashboard() {
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Opens the Add Class modal
+  // States for syncing with Canvas
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  // Opens the "Add Class" modal (existing logic)
   const handleAddClassClick = () => {
     setModalOpen(true);
   };
 
-  // Called when the Add Class form is submitted successfully
+  // Called when the Add Class form is submitted successfully (existing logic)
   const handleAddClass = (data: NewClassData) => {
     const newClass: ClassData = {
       id: Date.now().toString(),
@@ -55,7 +59,53 @@ export default function Dashboard() {
     );
   };
 
-  // Determine how many placeholder cards to show.
+  // NEW: function to sync with Canvas
+  // We'll fetch courses from /api/canvas/courses, filter for Spring2025,
+  // then log them in the console for debugging.
+  const syncWithCanvas = async () => {
+    try {
+      setSyncError(null);
+      setSyncLoading(true);
+
+      const resp = await fetch("/api/canvas/courses");
+      if (!resp.ok) {
+        const data = await resp.json();
+        throw new Error(data.error || "Unknown error");
+      }
+
+      const canvasCourses = await resp.json();
+      console.log("Canvas Courses:", canvasCourses);
+
+      // Adjust the filter: Check if course name includes both "2025" and "spring"
+      const filtered = canvasCourses.filter((course: any) => {
+        const nameLower = (course.name || "").toLowerCase();
+        return nameLower.includes("2025") && nameLower.includes("spring");
+      });
+      console.log("Filtered Courses:", filtered);
+
+      const mapped = filtered.map((course: any) => ({
+        id: course.id.toString(),
+        className: course.course_code || course.name,
+        professor: "N/A", // Modify if teacher info is available
+        session: "A",
+        semester: "Spring",
+        progress: 0,
+        roadmapCreated: false,
+        syllabusUploaded: false,
+      }));
+      console.log("Mapped Courses:", mapped);
+
+      // Update state with mapped courses
+      setClasses(mapped);
+    } catch (err: any) {
+      console.error("Canvas sync error:", err);
+      setSyncError(err.message);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  // Determine how many placeholder cards to show
   const filledCount = classes.length;
   const remainder = filledCount % 4;
   const placeholdersCount =
@@ -92,15 +142,29 @@ export default function Dashboard() {
             >
               Manage your classes and create personalized study roadmaps.
             </motion.p>
+
+            {/* UPDATED: "Sync with Canvas" button calls our new function */}
             <motion.button
-              onClick={handleAddClassClick}
+              onClick={syncWithCanvas}
               className="bg-white text-black mt-2 px-6 py-2 rounded hover:bg-gray-200 transition"
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.2 }}
             >
-              Sync with Canvas
+              {syncLoading ? "Syncing..." : "Sync with Canvas"}
             </motion.button>
+
+            {/* If there's an error syncing with Canvas, display it */}
+            {syncError && (
+              <motion.p
+                className="text-red-500 mt-2"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+              >
+                {syncError}
+              </motion.p>
+            )}
           </div>
         </div>
       </div>
