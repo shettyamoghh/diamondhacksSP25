@@ -72,7 +72,7 @@ export const Navbar = () => {
                 </a>
                 <a href="/dashboard">
                   <button className="bg-white py-2 px-4 rounded-lg text-black">
-                    TESTING DASHBOARD
+                    Log In / Sign Up
                   </button>
                 </a>
               </>
