@@ -7,10 +7,10 @@ import { AddClassModal, NewClassData } from "@/components/AddClassModal";
 
 interface ClassData {
   id: string;
-  className: string;
-  professor: string;
-  session: string;
-  semester: string;
+  className: string;   // e.g. "CSE 340"
+  professor: string;   // e.g. "Jane Smith"
+  session: string;     // e.g. "A", "B", or "C"
+  semester: string;    // e.g. "Spring"
   progress: number;
   roadmapCreated: boolean;
   syllabusUploaded: boolean;
@@ -29,7 +29,7 @@ export default function Dashboard() {
     setModalOpen(true);
   };
 
-  // Called when the Add Class form is submitted successfully (existing logic)
+  // Called when the Add Class form is submitted
   const handleAddClass = (data: NewClassData) => {
     const newClass: ClassData = {
       id: Date.now().toString(),
@@ -59,8 +59,9 @@ export default function Dashboard() {
     );
   };
 
-  // --------------- NEW: Sync with Canvas ---------------
-
+  // -----------------------------------------------
+  // Sync with Canvas: fetch courses, parse, and store
+  // -----------------------------------------------
   const syncWithCanvas = async () => {
     try {
       setSyncError(null);
@@ -75,41 +76,56 @@ export default function Dashboard() {
       const canvasCourses = await resp.json();
       console.log("Canvas Courses:", canvasCourses);
 
-      // 1) Filter for courses that have both "2025" and "spring" in the name
+      // 1) Filter: must include both "2025" and "spring" in the course name
+      //    or course_code. We can just filter by course_code
+      //    e.g. "2025SpringC-T-CSE340-20660" => includes "2025" and "Spring".
       const filtered = canvasCourses.filter((course: any) => {
-        const nameLower = (course.name || "").toLowerCase();
-        return nameLower.includes("2025") && nameLower.includes("spring");
+        const codeLower = (course.course_code || "").toLowerCase();
+        return codeLower.includes("2025") && codeLower.includes("spring");
       });
       console.log("Filtered Courses:", filtered);
 
-      // 2) Map them to ClassData format
+      // Helper: Insert a space between letters and digits, e.g. "CSE330" -> "CSE 330"
+      const parseClassCode = (rawCode: string): string => {
+        const match = rawCode.match(/^([A-Za-z]+)(\d+)$/);
+        if (match) {
+          return `${match[1].toUpperCase()} ${match[2]}`;
+        }
+        return rawCode; // fallback
+      };
+
+      // 2) Map each Canvas course to ClassData
       const mapped = filtered.map((course: any) => {
-        // Example: "2025SpringC-T-CSE330-16620"
-        // We'll split on "-" -> nameParts[0] = "2025SpringC", nameParts[1]="T", nameParts[2]="CSE330", etc.
-        const nameParts = (course.name || "").split("-");
+        // For example: course_code = "2025SpringC-T-CSE340-20660"
+        const codeString = course.course_code || course.name || "2025SpringC-T-???-?????";
+
+        // Split on "-"
+        const codeParts = codeString.split("-");
         let className = "Unknown Class";
         let session = "A";
-        let semester = "Spring"; // because we already know "Spring" is in the name
+        let semester = "Spring"; // default, since we found "spring" in the code
         let professor = "N/A";
 
         // If teachers are present, use the first teacher's name
         if (course.teachers && course.teachers.length > 0) {
-          // e.g. "Jane Smith"
           professor = course.teachers[0].display_name || "N/A";
         }
 
-        // Parse session/class code from nameParts
-        // nameParts[0] might be "2025SpringC"
-        // nameParts[2] might be "CSE330"
-        if (nameParts.length >= 3) {
-          className = nameParts[2].trim(); // e.g. "CSE330"
+        // codeParts[0] might be "2025SpringC"
+        // codeParts[2] might be "CSE340", etc.
+        // Check length
+        if (codeParts.length >= 3) {
+          const rawClassCode = codeParts[2].trim(); // e.g. "CSE340"
+          className = parseClassCode(rawClassCode); // => "CSE 340"
 
-          const possibleSession = nameParts[0].trim();
-          // If the last char is A/B/C, interpret as session
-          const lastChar = possibleSession.slice(-1).toUpperCase(); // e.g. "C"
+          const prefix = codeParts[0].trim();  // e.g. "2025SpringC"
+          const lastChar = prefix.slice(-1).toUpperCase(); // => "C"
           if (["A", "B", "C"].includes(lastChar)) {
             session = lastChar;
           }
+        } else {
+          // If not enough parts, fallback to parse the entire course_code
+          className = parseClassCode(codeString);
         }
 
         return {
@@ -126,7 +142,7 @@ export default function Dashboard() {
 
       console.log("Mapped Courses:", mapped);
 
-      // 3) Update state with mapped courses so they appear in your UI
+      // 3) Update state with mapped courses -> displayed in your UI
       setClasses(mapped);
     } catch (err: any) {
       console.error("Canvas sync error:", err);
@@ -142,7 +158,7 @@ export default function Dashboard() {
   const placeholdersCount =
       filledCount === 0 ? 4 : remainder === 0 ? 4 : 4 - remainder;
 
-  // Create a combined array: filled classes first, then placeholder nulls.
+  // Create a combined array: classes + placeholder nulls
   const displayCards = [...classes, ...Array(placeholdersCount).fill(null)];
 
   return (
@@ -186,7 +202,7 @@ export default function Dashboard() {
                 {syncLoading ? "Syncing..." : "Sync with Canvas"}
               </motion.button>
 
-              {/* If there's an error syncing with Canvas, display it */}
+              {/* If there's an error syncing, display it */}
               {syncError && (
                   <motion.p
                       className="text-red-500 mt-2"
@@ -212,7 +228,7 @@ export default function Dashboard() {
             {displayCards.map((card, index) => {
               if (index < classes.length) {
                 const cls = classes[index];
-                // Format professor name to e.g. "J. Smith" if possible
+                // Format professor name to e.g. "J. Smith"
                 const professorFormatted = (() => {
                   const parts = cls.professor.trim().split(/\s+/);
                   if (parts.length >= 2) {
@@ -282,7 +298,7 @@ export default function Dashboard() {
                     </div>
                 );
               } else if (index === classes.length) {
-                // The first placeholder is an "Add Class" button
+                // The first placeholder is "Add Class" button
                 return (
                     <div
                         key={`placeholder-${index}`}
