@@ -56,8 +56,6 @@ export default function Dashboard() {
   };
 
   // Determine how many placeholder cards to show.
-  // If no classes have been added, we show 4 placeholders.
-  // Otherwise, fill the current row up to 4 cards with placeholders.
   const filledCount = classes.length;
   const remainder = filledCount % 4;
   const placeholdersCount =
@@ -69,25 +67,45 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
-      {/* Main Content */}
-      <main className="container mx-auto px-4 pt-16 pb-8 text-center">
-        <motion.section
-          className="mb-12"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <h2 className="text-5xl font-semibold mb-2">Your Classes</h2>
-          <p className="text-gray-300 mb-4 text-xl">
-            Manage your classes and create personalized study roadmaps.
-          </p>
-          <button
-            onClick={handleAddClassClick}
-            className="bg-white text-black px-6 py-2 rounded hover:bg-gray-200 transition"
-          >
-            Sync with Canvas
-          </button>
-        </motion.section>
+      {/* Header with Radial Dots Background */}
+      <div className="relative mb-12">
+        <div className="relative h-[20rem] flex flex-col items-center justify-center">
+          {/* Dots background layer */}
+          <div className="absolute inset-0 [background-size:20px_20px] [background-image:radial-gradient(#d4d4d4_1px,transparent_1px)] dark:[background-image:radial-gradient(#404040_1px,transparent_1px)]"></div>
+          {/* Faded radial gradient overlay */}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)] dark:bg-black"></div>
+          {/* Header content */}
+          <div className="relative z-20 text-center">
+            <motion.h2
+              className="text-5xl font-semibold mb-2"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              Your Classes
+            </motion.h2>
+            <motion.p
+              className="text-gray-300 mb-4 text-xl"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+            >
+              Manage your classes and create personalized study roadmaps.
+            </motion.p>
+            <motion.button
+              onClick={handleAddClassClick}
+              className="bg-white text-black mt-2 px-6 py-2 rounded hover:bg-gray-200 transition"
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+            >
+              Sync with Canvas
+            </motion.button>
+          </div>
+        </div>
+      </div>
+      {/* Cards Section */}
+      <main className="container mx-auto px-4 pb-8 text-center">
         <motion.section
           className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6"
           initial={{ opacity: 0, y: 20 }}
@@ -95,7 +113,6 @@ export default function Dashboard() {
           transition={{ duration: 0.4, delay: 0.2 }}
         >
           {displayCards.map((card, index) => {
-            // Render filled class card if index corresponds to an added class.
             if (index < classes.length) {
               const cls = classes[index];
               const professorFormatted = (() => {
@@ -146,7 +163,7 @@ export default function Dashboard() {
                         />
                       </svg>
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-3xl font-bold">
+                        <span className="text-4xl font-bold">
                           {cls.progress}%
                         </span>
                       </div>
@@ -163,7 +180,6 @@ export default function Dashboard() {
                 </div>
               );
             } else if (index === classes.length) {
-              // The first placeholder in the row: interactive "Add Class" card.
               return (
                 <div
                   key={`placeholder-${index}`}
@@ -181,7 +197,6 @@ export default function Dashboard() {
                 </div>
               );
             } else {
-              // Other placeholders in the row.
               return (
                 <div
                   key={`placeholder-${index}`}
