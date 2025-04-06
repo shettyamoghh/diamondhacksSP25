@@ -37,9 +37,11 @@ export const Hero = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut", delay: 0.4 }}
         >
-          <button className="bg-white text-black py-3 px-5 rounded-lg font-medium">
-            Get Started
-          </button>
+          <a href="/login">
+            <button className="bg-white text-black py-3 px-5 rounded-lg font-medium">
+              Get Started
+            </button>
+          </a>
         </motion.div>
       </div>
     </div>
