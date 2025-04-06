@@ -87,9 +87,3 @@ To test the progress circle functionality:
 - **Add Class:** Use the modal form to add a class with specific format requirements.
 - **Progress Circle Testing:** Simulate progress updates by clicking the roadmap button.
 - **Backend Integration:** Teammates are expected to integrate their backend logic into the form submission and class data display.
-
-Happy coding!
-
-```
-
-```
